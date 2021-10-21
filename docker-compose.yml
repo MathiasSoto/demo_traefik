@@ -1,0 +1,71 @@
+version: "3.4"
+
+services:
+  
+  proxy:
+    image: traefik:v2.1
+    container_name: proxy
+    command:
+      - "--providers.docker"
+      - "--api.insecure=true"
+      - "--api.dashboard=true"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - tesla_network
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    tty: true
+    volumes:
+      - ./app1/:/var/www/app1
+      - ./app2/:/var/www/app2
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+    labels:
+      - "traefik.http.routers.nginx.rule=HostRegexp(`{subdomain:[A-Za-z0-9]+}.local`)"
+    networks:
+      - tesla_network
+
+  app1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tesla/php
+    container_name: app1
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: app1
+      SERVICE_TAGS: app1_dev
+    working_dir: /var/www/app1
+    volumes:
+      - ./app1/:/var/www/app1
+    networks:
+      - tesla_network
+
+  app2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tesla/php
+    container_name: app2
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: app2
+      SERVICE_TAGS: app2_dev
+    working_dir: /var/www/app2
+    volumes:
+      - ./app2/:/var/www/app2
+    networks:
+      - tesla_network
+
+networks:
+  tesla_network:
+    external:
+      name: dev
